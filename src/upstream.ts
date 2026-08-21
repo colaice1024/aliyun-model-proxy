@@ -212,7 +212,6 @@ function filterResponseHeaders(source: Headers): Headers {
 }
 
 async function readFreeTierExhaustion(response: Response): Promise<FreeTierExhaustionCheck> {
-  // 修改这里：同时处理 403 和 429
   if (response.status !== 403 && response.status !== 429) {
     return {
       exhaustion: null,
@@ -322,19 +321,12 @@ function extractFreeTierExhaustion(payload: unknown, status?: number): FreeTierE
     getString(error?.request_id) ||
     getString(error?.requestId)
 
-  // 1. 修改正则：同时匹配 "free tier" 和 "free quota"
   const freeExhausted = /free\s+(?:tier|quota)\s+exhausted/i.test(message)
-
-  // 2. 原有判断：特定的免费套餐错误码
   const freeTierOnly = code === 'AllocationQuota.FreeTierOnly' || type === 'AllocationQuota.FreeTierOnly'
-
-  // 3. 新增判断：处理 403 + insufficient_quota + 包含 "free quota" 的情况
   const isFreeQuotaExhaustion =
     status === 403 &&
     (code === 'insufficient_quota' || type === 'insufficient_quota') &&
     /free\s+quota/i.test(message)
-
-  // 4. 保留之前的 429 判断（但你可能也要考虑 429 中也有类似消息，统一处理）
   const quotaExceeded = status === 429 && /you exceeded your current quota/i.test(message)
 
   if (
